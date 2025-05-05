@@ -8,13 +8,24 @@ CORS(app)
 
 @app.route("/api/chat", methods=["POST"])
 def chat():
-    data = request.get_json()
-    insumo = data.get("insumo")
-    localidad = data.get("localidad")
-    estructura = analizar_consulta(f"{insumo} en {localidad}")
-    resultados_web = buscar_productos_google(estructura['query_optimizada'])
-    respuesta = generar_respuesta_gpt(estructura, resultados_web)
-    return jsonify({"respuesta": respuesta})
+    try:
+        data = request.get_json()
+        insumo = data.get("insumo")
+        localidad = data.get("localidad")
+
+        if not insumo or not localidad:
+            return jsonify({"error": "Faltan campos"}), 400
+
+        estructura = analizar_consulta(f"{insumo} en {localidad}")
+        resultados_web = buscar_productos_google(estructura['query_optimizada'])
+        respuesta = generar_respuesta_gpt(estructura, resultados_web)
+
+        return jsonify({"respuesta": respuesta})
+
+    except Exception as e:
+        # Imprimir el error en los logs para Render
+        print(f"Error en /api/chat: {str(e)}")
+        return jsonify({"error": "Error interno del servidor"}), 500
 
 if __name__ == "__main__":
     print("Iniciando servidor Flask...")
