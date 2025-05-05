@@ -1,7 +1,7 @@
 import os
+import json
 from openai import OpenAI
 
-# Cliente global
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def analizar_consulta(texto_usuario):
@@ -22,37 +22,16 @@ Extraé y devolvé un JSON con:
         temperature=0.3
     )
 
-    return eval(response.choices[0].message.content)
+    try:
+        content = response.choices[0].message.content
+        estructura = json.loads(content)
 
-def generar_respuesta_gpt(estructura, resultados_web):
-    prompt = f"""Actuá como un experto en análisis de precios de construcción.
-Producto: {estructura['producto']}
-Tipo: {estructura.get('tipo', '')}
-Marca: {estructura.get('marca', '')}
-Atributos: {estructura.get('atributos', '')}
-Localidad: {estructura['localidad']}
-Proveedor: {estructura.get('proveedor', '')}
+        # Validación mínima
+        if "producto" not in estructura or "localidad" not in estructura:
+            raise ValueError("Faltan datos mínimos")
 
-Resultados web:
-"""
-    for r in resultados_web:
-        prompt += f"\nTítulo: {r['titulo']}\nDescripción: {r['descripcion']}\nLink: {r['link']}\n"
+        return estructura
 
-    prompt += """
-
-Respondé con el siguiente formato claro:
-- Descripción
-- Unidad
-- Precio estimado y moneda
-- Localidad
-- Link principal
-- Si coincide con el proveedor buscado, aclaralo. Si no, mencioná que se muestran resultados generales.
-"""
-
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.5
-    )
-
-    return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Error al interpretar respuesta: {e}")
+        return {}
