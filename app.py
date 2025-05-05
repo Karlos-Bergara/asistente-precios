@@ -1,32 +1,38 @@
 from flask import Flask, request, jsonify
-from resumen_gpt import analizar_consulta, generar_respuesta_gpt
-from busqueda_google import buscar_productos_google
-from flask_cors import CORS
+from openai import OpenAI
+import os
 
 app = Flask(__name__)
-CORS(app)
+
+# Cliente actualizado para openai>=1.0.0
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 @app.route("/api/chat", methods=["POST"])
 def chat():
     try:
         data = request.get_json()
-        insumo = data.get("insumo")
-        localidad = data.get("localidad")
+        insumo = data.get("insumo", "").strip()
+        localidad = data.get("localidad", "").strip()
 
         if not insumo or not localidad:
-            return jsonify({"error": "Faltan campos"}), 400
+            return jsonify({"respuesta": "Faltan datos de insumo o localidad."}), 400
 
-        estructura = analizar_consulta(f"{insumo} en {localidad}")
-        resultados_web = buscar_productos_google(estructura['query_optimizada'])
-        respuesta = generar_respuesta_gpt(estructura, resultados_web)
+        prompt = f"¿Cuál es el precio aproximado de {insumo} en {localidad}? Dame una estimación clara en moneda local."
 
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Sos un asistente experto en precios de construcción en Latinoamérica."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+
+        respuesta = response.choices[0].message.content
         return jsonify({"respuesta": respuesta})
 
     except Exception as e:
-        # Imprimir el error en los logs para Render
-        print(f"Error en /api/chat: {str(e)}")
-        return jsonify({"error": "Error interno del servidor"}), 500
+        print("Error:", e)
+        return jsonify({"respuesta": f"Error al procesar la consulta: {e}"}), 500
 
 if __name__ == "__main__":
-    print("Iniciando servidor Flask...")
     app.run(debug=True)
