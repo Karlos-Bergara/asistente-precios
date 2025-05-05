@@ -1,38 +1,38 @@
 from flask import Flask, request, jsonify
-from openai import OpenAI
+from flask_cors import CORS
 import os
+from openai import OpenAIError, OpenAI
+from resumen_gpt import analizar_consulta, generar_respuesta_gpt
 
 app = Flask(__name__)
+CORS(app)
 
-# Cliente actualizado para openai>=1.0.0
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 @app.route("/api/chat", methods=["POST"])
 def chat():
     try:
         data = request.get_json()
-        insumo = data.get("insumo", "").strip()
-        localidad = data.get("localidad", "").strip()
 
-        if not insumo or not localidad:
+        if not data or "texto" not in data:
+            return jsonify({"respuesta": "Falta el texto de consulta."}), 400
+
+        texto_usuario = data["texto"]
+        estructura = analizar_consulta(texto_usuario)
+
+        if not estructura or "producto" not in estructura or "localidad" not in estructura:
             return jsonify({"respuesta": "Faltan datos de insumo o localidad."}), 400
 
-        prompt = f"¿Cuál es el precio aproximado de {insumo} en {localidad}? Dame una estimación clara en moneda local."
+        # Simulamos resultados web vacíos (puede integrar scraping más adelante)
+        resultados_web = []
 
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "Sos un asistente experto en precios de construcción en Latinoamérica."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-
-        respuesta = response.choices[0].message.content
+        respuesta = generar_respuesta_gpt(estructura, resultados_web)
         return jsonify({"respuesta": respuesta})
 
+    except OpenAIError as e:
+        return jsonify({"respuesta": f"Error al consultar OpenAI: {str(e)}"}), 500
     except Exception as e:
-        print("Error:", e)
-        return jsonify({"respuesta": f"Error al procesar la consulta: {e}"}), 500
+        return jsonify({"respuesta": f"Error interno del servidor: {str(e)}"}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
