@@ -1,7 +1,8 @@
-import openai
-
+from openai import OpenAI
 import os
-openai.api_key = os.getenv("OPENAI_API_KEY")
+
+# Crear el cliente con la clave de API
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def analizar_consulta(texto_usuario):
     prompt = f"""Sos un asistente experto en construcción. El usuario hizo esta consulta:
@@ -15,7 +16,7 @@ Extraé y devolvé un JSON con:
 - proveedor
 - query_optimizada (incluyendo proveedor si aplica)"""
 
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model="gpt-4",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.3
@@ -48,7 +49,7 @@ Respondé con el siguiente formato claro:
 - Si coincide con el proveedor buscado, aclaralo. Si no, mencioná que se muestran resultados generales.
 """
 
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model="gpt-4",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.5
